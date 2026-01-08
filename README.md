@@ -31,7 +31,8 @@ basic `nix-shell` you would have gotten otherwise.
 
 ### `run-next-phase`, `n`
 
-*`run-next-phase`*
+*`run-next-phase`* \
+*`n`*
 
 Runs the next phase, as described by `stdenv`'s `definePhases`. The next phase
 is also indicated by the prompt and stored in the `$nextPhase` shell variable.
