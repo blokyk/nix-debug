@@ -82,8 +82,13 @@ tidy :) Just like earlier, the default action is to keep the folder.
 
 I mean, look at the difference.
 
+*`nix-shell`'s original prompt:*
+
 ![the basic `nix-shell` prompt, where the only information is the fact that
 it's a `nix-shell` and the long, absolute working directory](nix-shell-prompt.png)
+
+*`nix-debug`'s new prompt:*
+
 ![the `nix-debug` prompt, showing the package name, relative working directory,
 and current phase, in much fewer characters](nix-debug-prompt.png)
 
