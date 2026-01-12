@@ -95,8 +95,8 @@ __delete_src_on_start() {
         echo -ne '\e[1mDo you want to \e[31mdelete\e[39m it? [y/N] \e[22m'
         if __ask_yn; then
             echo -e "\e[31mDeleting \e[1m$__src_folder/\e[0m"
-            chmod u+w -R "$__src_folder" # set directory to be writable, so we can delete it (cf #6)
-            rm -rf "$__src_folder"
+            chmod u+w -R -- "$__src_folder" # set directory to be writable, so we can delete it (cf #6)
+            rm -rf -- "$__src_folder"
         else
             echo -e "\e[32mKeeping folder\e[39m -> \e[1;33munpack phase may fail!\e[0m"
         fi
@@ -110,9 +110,9 @@ __delete_src_on_exit() {
         echo -ne "\e[1mDelete unpacked \e[31m$__src_folder/\e[39m folder? [y/N] \e[22m"
         if __ask_yn; then
             echo -e "\e[31mDeleting \e[1m$(realpath "$__original_pwd/$__src_folder")/\e[0m"
-            chmod u+w -R "$__original_pwd/$__src_folder" # set directory to be writable, so we can delete it (cf #6)
+            chmod u+w -R -- "$__original_pwd/$__src_folder" # set directory to be writable, so we can delete it (cf #6)
             # shellcheck disable=SC2115 # __original_pwd is never empty, so the expr will never be '/'
-            rm -rf "$__original_pwd/$__src_folder"
+            rm -rf -- "$__original_pwd/$__src_folder"
         else
             echo -e "\e[32mKeeping folder\e[39m"
         fi
@@ -153,7 +153,7 @@ __setup_prompt() {
         # if the working directory is a subfolder of the original pwd,
         if [[ "$PWD" = "$__original_pwd"* ]]; then
             # only display the relative path (based on the working dir of the original shell)
-            realpath --no-symlinks --relative-to="$__original_pwd" "$PWD"
+            realpath --no-symlinks --relative-to="$__original_pwd" -- "$PWD"
         else
             # otherwise, just use the absolute path
             echo "$PWD"
