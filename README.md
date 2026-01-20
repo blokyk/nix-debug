@@ -59,8 +59,9 @@ full phase name; if there are multiple matching phases it will throw an error
 and will have to be more specific. Thus, `run-until b`, `run-until build` and
 `run-until buildPhase` will all run the `buildPhase` phase.
 
-### `r`
+### `run`, `r`
 
+*`run <phase>`* \
 *`r <phase>`*
 
 A simple alias/wrapper for `runPhase` that allows `<phase>` to be a prefix

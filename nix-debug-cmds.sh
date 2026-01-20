@@ -210,21 +210,7 @@ run-until() {
     unset -f __is_target_phase
 }
 
-__setup_phases
-__setup_utils
-__setup_prompt
-
-__delete_src_on_start
-trap __delete_src_on_exit EXIT
-
-echo
-echo -e "\e[1m${#phases_arr[@]}\e[22m" phases to run: "${phases_arr[@]}"
-__set_next_phase 0
-echo
-echo -e 'Use \e[1mrun-next-phase\e[22m to step through each phase'
-echo -e 'Use \e[1mrun-until <phase>\e[22m to run every phase *before* the given phase'
-
-r() {
+run() {
     if [[ "$1" = "" ]]; then
         echo "Alias for 'runPhase' except that <phase> can be a prefix"
         echo "Usage: r <phase>"
@@ -239,6 +225,23 @@ r() {
         runPhase "$phase"
     fi
 }
+
+__setup_phases
+__setup_utils
+__setup_prompt
+
+__delete_src_on_start
+trap __delete_src_on_exit EXIT
+
+echo
+echo -e "\e[1m${#phases_arr[@]}\e[22m" phases to run: "${phases_arr[@]}"
+__set_next_phase 0
+echo
+echo -e 'Use \e[1mrun <phase>\e[22m to run a specific phase (alias: \e[1mr\e[22m)'
+echo -e 'Use \e[1mrun-next-phase\e[22m to step through each phase (alias: \e[1mn\e[22m)'
+echo -e 'Use \e[1mrun-until <phase>\e[22m to run every phase *before* the given phase (alias: \e[1mu\e[22m)'
+
+alias r='run'
 alias u='run-until'
 alias n='run-next-phase'
 
