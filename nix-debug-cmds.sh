@@ -91,12 +91,15 @@ __delete_src_on_start() {
     #       (but fallback to "source/" in case it doesn't work)
     local __src_folder="./source" # no trailing slashes to avoid symlink shenanigans
     if [[ -d "$__src_folder" ]]; then
-        echo -e "There seems to already be a \e[1m$__src_folder/\e[22m folder in the working directory."
+        echo -e "There seems to already be a source folder (\e[1m$__src_folder/\e[22m) in the working directory."
         echo -ne '\e[1mDo you want to \e[31mdelete\e[39m it? [y/N] \e[22m'
         if __ask_yn; then
-            echo -e "\e[31mDeleting \e[1m$__src_folder/\e[0m"
-            chmod u+w -R -- "$__src_folder" # set directory to be writable, so we can delete it (cf #6)
-            rm -rf -- "$__src_folder"
+            local to_rm
+            to_rm="$(realpath --no-symlinks "$__original_pwd/$__src_folder")"
+            echo -e "\e[31mDeleting \e[1m$to_rm/\e[0m"
+            # try to delete directory normally, and if it doesn't work, make it writable and try again (cf #6)
+            rm -rf -- "$to_rm" ||
+                (chmod u+w -R -- "$to_rm" && rm -rf -- "$to_rm")
         else
             echo -e "\e[32mKeeping folder\e[39m -> \e[1;33munpack phase may fail!\e[0m"
         fi
@@ -107,12 +110,16 @@ __delete_src_on_exit() {
     # todo: cf __delete_src_on_start comment
     local __src_folder="./source"
     if [[ -d "$__original_pwd/$__src_folder" ]]; then
-        echo -ne "\e[1mDelete unpacked \e[31m$__src_folder/\e[39m folder? [y/N] \e[22m"
+        echo -ne "\e[1mDelete unpacked source folder \e[31m$__src_folder/\e[39m ? [y/N] \e[22m"
         if __ask_yn; then
-            echo -e "\e[31mDeleting \e[1m$(realpath "$__original_pwd/$__src_folder")/\e[0m"
-            chmod u+w -R -- "$__original_pwd/$__src_folder" # set directory to be writable, so we can delete it (cf #6)
+            local to_rm
+            to_rm="$(realpath --no-symlinks "$__original_pwd/$__src_folder")"
+            echo -e "\e[31mDeleting \e[1m$to_rm/\e[0m"
+            # try to delete directory normally, and if it doesn't work, make it writable and try again (cf #6)
+
             # shellcheck disable=SC2115 # __original_pwd is never empty, so the expr will never be '/'
-            rm -rf -- "$__original_pwd/$__src_folder"
+            rm -rf -- "$to_rm" ||
+                (chmod u+w -R -- "$to_rm" && rm -rf -- "$to_rm")
         else
             echo -e "\e[32mKeeping folder\e[39m"
         fi
