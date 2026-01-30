@@ -7,13 +7,11 @@
 This is a very small wrapper around `nix-shell` that makes the `stdenv`-based
 derivation debugging experience ever so slightly nicer, by:
 
-- adding convenient functions like `run-next-phase` and `run-until <phase>`
+- adding [convenient functions](#usage--niceties) like `run-next-phase` and `run-until <phase>`
 - using short, convenient aliases for some commands (`r` for `runPhase`,
   `u` for `run-until`, and `n` for `run-next-phase`)
-- avoiding the unending cycle of `rm -rf source/ && nix-shell ...`
-- having a shorter, informative prompt:
-  ![An example of `nix-debug`'s prompt, showing the package name, relative
-  working directory, and current phase](prompt.png)
+- avoiding the [unending cycle](#automatically-deleting-the-unpacked-source) of `rm -rf source/ && nix-shell ...`
+- having a shorter, [informative prompt](#an-informative-prompt)
 
 You should be able to use this exactly like `nix-shell` ([except for the fact
 that it'll be misleading for `-p`](https://github.com/blokyk/nix-debug/issues/2));
