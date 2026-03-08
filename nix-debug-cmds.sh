@@ -1,23 +1,30 @@
 # shellcheck shell=bash
 
+# if this isn't a bash/stdenv-based derivation, we're useless
+# (we do this outside of main because we might not be able to parse the rest of this file otherwise)
+if [[ "$(basename "${SHELL:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux ]]; then
+    __drv_env="$(basename "${SHELL:-$0}")+$(basename "${stdenv:-unknown}")"
+    echo -e "\e[1;33mWARN: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
+    echo -e   "\e[33m      nix-debug will not be able to detect build phases.\e[0m"
+    unset __drv_env
+    return
+fi
+
 __main() {
-    # if this isn't a bash/stdenv-based derivation, we're useless
-    if [[ "$(basename "${SHELL:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux ]]; then
-        __drv_env="$(basename "${SHELL:-$0}")+$(basename "${stdenv:-unknown}")"
-        echo -e "\e[1;33mWARN: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
-        echo -e   "\e[33m      nix-debug will not be able to detect build phases.\e[0m"
-        unset __drv_env
-        return
-    fi
-
-    # todo: check that `genericBuild` isn't overridden/short-circuited
-    # before starting a normal phase-based build, `genericBuild` checks the `buildCommandPath` and `buildCommand`
-    # variables to make sure it actually should run phases. if these variables are set, then we should honor
-    # that and display a warning about the builder not being supported/not being phased-based
-
-    __setup_phases
     __setup_utils
     __setup_prompt
+
+    if [[ "${buildCommand:-}${buildCommandPath:-}" != "" ]]; then
+        echo -e "\e[1;33mWARN: derivation doesn't use phases but instead use buildCommand (this is the case for runCommand, writeText, and other similar builders.)\e[0m"
+        echo -e "\e[1;33m      nix-debug will not be of much help here, good luck.\e[0m"
+        # remove phases from the prompt
+        # todo: this is hacky, we can probably rewrite __setup_prompt to better support this
+        #        (especially cause we already have `__ps1_short`, which doesn't include phases)
+        phases_arr=()
+        return 0
+    fi
+
+    __setup_phases
 
     trap __delete_src_on_exit EXIT
 
@@ -32,11 +39,13 @@ __main() {
     alias r='run'
     alias u='run-until'
     alias n='run-next-phase'
+}
 
-    unset -f __setup_phases
-    unset -f __setup_utils
-    unset -f __setup_prompt
-    unset -f __delete_src_on_start
+__cleanup_start() {
+    unset -f __setup_phases || true
+    unset -f __setup_utils || true
+    unset -f __setup_prompt || true
+    unset -f __delete_src_on_start || true
 }
 
 __setup_phases() {
@@ -284,3 +293,4 @@ run() {
 }
 
 __main
+__cleanup_start
