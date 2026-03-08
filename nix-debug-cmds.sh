@@ -86,34 +86,50 @@ __setup_utils() {
     }
 }
 
-__delete_src_on_start() {
-    # todo: look at how unpackPhase sets the $sourceRoot variable (or look $src to get the name maybe?)
-    #       (but fallback to "source/" in case it doesn't work)
-    local __src_folder="./source" # no trailing slashes to avoid symlink shenanigans
-    if [[ -d "$__src_folder" ]]; then
-        echo -e "There seems to already be a source folder (\e[1m$__src_folder/\e[22m) in the working directory."
-        echo -ne '\e[1mDo you want to \e[31mdelete\e[39m it? [y/N] \e[22m'
-        if __ask_yn; then
-            local to_rm
-            to_rm="$(realpath --no-symlinks "$__original_pwd/$__src_folder")"
-            echo -e "\e[31mDeleting \e[1m$to_rm/\e[0m"
-            # try to delete directory normally, and if it doesn't work, make it writable and try again (cf #6)
-            rm -rf -- "$to_rm" ||
-                (chmod u+w -R -- "$to_rm" && rm -rf -- "$to_rm")
-        else
-            echo -e "\e[32mKeeping folder\e[39m -> \e[1;33munpack phase may fail!\e[0m"
-        fi
-    fi
-}
-
 __delete_src_on_exit() {
-    # todo: cf __delete_src_on_start comment
-    local __src_folder="./source"
-    if [[ -d "$__original_pwd/$__src_folder" ]]; then
-        echo -ne "\e[1mDelete unpacked source folder \e[31m$__src_folder/\e[39m ? [y/N] \e[22m"
+    # if $src isn't defined, define it based on $srcs (or set it empty if $srcs is undefined)
+    src="${src:-${srcs[0]:-}}"
+
+    # if there's more than one source, we don't really know how to cleanup right now ¯\_(ツ)_/¯
+    if [[ "${srcs[*]:-}" != "${srcs:-}" ]] && [[ "${#srcs[@]:-0}" -gt 1 ]]; then
+        echo -e "\e[2;33mWARN: Didn't cleanup unpack because there was more than one source\e[0m"
+        return 0
+    fi
+
+    # if none of $src, $srcs, or $sourceRoot is defined, we have no way to know what to cleanup
+    if [[ "${src:-}" = "" ]] && [[ "${sourceRoot:-}" = "" ]]; then
+        echo -e "\e[2;33mWARN: Didn't cleanup because unpack phase seems custom (\$src, \$srcs and \$sourceRoot are all unset)\e[0m"
+        return 0
+    fi
+
+    local srcName
+    # in most cases, $sourceRoot will just be the name of the unpacked folder.
+    # but when it is manually set, it's almost always a subfolder of the unpacked
+    # dir, given as a relative path.
+    # therefore, to get the root unpacked name, get the first segment (not including
+    # a leading './', if there is any)
+    srcName="${sourceRoot:-.}"
+    srcName="$(echo "${srcName#./}" | cut -d/ -f1)"
+
+    # however, in some cases sourceRoot is '.' or './.', in which case we can instead
+    # try to guess the unpacked name based on the name of the $src derivation.
+    if [[ "$srcName" = "." ]]; then
+        srcName="$(stripHash "$src")"
+        # remove archive extension, if any
+        srcName="${srcName%.tar.gz}"
+        srcName="${srcName%.zip}"
+    fi
+
+    # this should never happen, but better be safe than delete the user's project (ask me how i know)
+    if [[ "$srcName" = "" ]]; then
+        return 0
+    fi
+
+    local to_rm
+    to_rm="$(realpath --no-symlinks "$__original_pwd/$srcName")"
+    if [[ -d "$to_rm" ]]; then
+        echo -ne "\e[1mDelete unpacked source folder \e[31m./$srcName/\e[39m? [y/N] \e[22m"
         if __ask_yn; then
-            local to_rm
-            to_rm="$(realpath --no-symlinks "$__original_pwd/$__src_folder")"
             echo -e "\e[31mDeleting \e[1m$to_rm/\e[0m"
             # try to delete directory normally, and if it doesn't work, make it writable and try again (cf #6)
 
@@ -121,7 +137,10 @@ __delete_src_on_exit() {
             rm -rf -- "$to_rm" ||
                 (chmod u+w -R -- "$to_rm" && rm -rf -- "$to_rm")
         else
-            echo -e "\e[32mKeeping folder\e[39m"
+            # todo: when we don't delete the source folder, add a little file that tracks the curr phase
+            #       and then (on next startup) as the user if they want to pick back up from there
+            #       (if we do that we'd have to delete the state file on startup, to not interfere with the build)
+            echo -e "\e[32mKeeping folder\e[39m -> \e[1;33mnext unpack may fail!\e[0m"
         fi
     fi
 }
@@ -243,7 +262,6 @@ __setup_phases
 __setup_utils
 __setup_prompt
 
-__delete_src_on_start
 trap __delete_src_on_exit EXIT
 
 echo
