@@ -1,18 +1,43 @@
 # shellcheck shell=bash
 
-# if this isn't a bash/stdenv-based derivation, we're useless
-if [[ "$(basename "${SHELL:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux ]]; then
-    __drv_env="$(basename "${SHELL:-$0}")+$(basename "${stdenv:-unknown}")"
-    echo -e "\e[1;33mWARN: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
-    echo -e   "\e[33m      nix-debug will not be able to detect build phases.\e[0m"
-    unset __drv_env
-    return
-fi
+__main() {
+    # if this isn't a bash/stdenv-based derivation, we're useless
+    if [[ "$(basename "${SHELL:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux ]]; then
+        __drv_env="$(basename "${SHELL:-$0}")+$(basename "${stdenv:-unknown}")"
+        echo -e "\e[1;33mWARN: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
+        echo -e   "\e[33m      nix-debug will not be able to detect build phases.\e[0m"
+        unset __drv_env
+        return
+    fi
 
-# todo: check that `genericBuild` isn't overridden/short-circuited
-# before starting a normal phase-based build, `genericBuild` checks the `buildCommandPath` and `buildCommand`
-# variables to make sure it actually should run phases. if these variables are set, then we should honor
-# that and display a warning about the builder not being supported/not being phased-based
+    # todo: check that `genericBuild` isn't overridden/short-circuited
+    # before starting a normal phase-based build, `genericBuild` checks the `buildCommandPath` and `buildCommand`
+    # variables to make sure it actually should run phases. if these variables are set, then we should honor
+    # that and display a warning about the builder not being supported/not being phased-based
+
+    __setup_phases
+    __setup_utils
+    __setup_prompt
+
+    trap __delete_src_on_exit EXIT
+
+    echo
+    echo -e "\e[1m${#phases_arr[@]}\e[22m" phases to run: "${phases_arr[@]}"
+    __set_next_phase 0
+    echo
+    echo -e 'Use \e[1mrun <phase>\e[22m to run a specific phase (alias: \e[1mr\e[22m)'
+    echo -e 'Use \e[1mrun-next-phase\e[22m to step through each phase (alias: \e[1mn\e[22m)'
+    echo -e 'Use \e[1mrun-until <phase>\e[22m to run every phase *before* the given phase (alias: \e[1mu\e[22m)'
+
+    alias r='run'
+    alias u='run-until'
+    alias n='run-next-phase'
+
+    unset -f __setup_phases
+    unset -f __setup_utils
+    unset -f __setup_prompt
+    unset -f __delete_src_on_start
+}
 
 __setup_phases() {
     # sets up the 'phases' variable globally, either using the `definePhases` function if it
@@ -258,25 +283,4 @@ run() {
     fi
 }
 
-__setup_phases
-__setup_utils
-__setup_prompt
-
-trap __delete_src_on_exit EXIT
-
-echo
-echo -e "\e[1m${#phases_arr[@]}\e[22m" phases to run: "${phases_arr[@]}"
-__set_next_phase 0
-echo
-echo -e 'Use \e[1mrun <phase>\e[22m to run a specific phase (alias: \e[1mr\e[22m)'
-echo -e 'Use \e[1mrun-next-phase\e[22m to step through each phase (alias: \e[1mn\e[22m)'
-echo -e 'Use \e[1mrun-until <phase>\e[22m to run every phase *before* the given phase (alias: \e[1mu\e[22m)'
-
-alias r='run'
-alias u='run-until'
-alias n='run-next-phase'
-
-unset -f __setup_phases
-unset -f __setup_utils
-unset -f __setup_prompt
-unset -f __delete_src_on_start
+__main
