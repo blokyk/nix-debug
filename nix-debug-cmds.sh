@@ -132,29 +132,35 @@ __setup_prompt() {
     # check
     # ppppp
     # (i mean, it's the name of the phase in purple/pink, what else do you want to me to say?)
-    local _ph_seg='\[\e[3;35m\]${nextPhase/Phase/}\[\e[0m\]'
+    __ps1_ph_seg='\[\e[3;35m\]${nextPhase/Phase/}\[\e[0m\]'
 
     # hello(source/tests)
     # ggggggGGGGGGGGGGGGg
-    local _pname_and_dir='\[\e[32m\]${pname:-${name:-unknown}}(\[\e[1m\]$(__relative_pwd)\[\e[22m\])\[\e[0m\]'
+    __ps1_pname_and_dir='\[\e[32m\]${pname:-${name:-unknown}}(\[\e[1m\]$(__relative_pwd)\[\e[22m\])\[\e[0m\]'
 
     # hello(source/tests) $ 
     # ggggggGGGGGGGGGGGGg w
-    short() {
-        printf '%s \\$ ' "$_pname_and_dir"
+    __ps1_short() {
+        printf '%s \\$ ' "$__ps1_pname_and_dir"
     }
 
     # hello(source/tests) check> 
     # ggggggGGGGGGGGGGGGg pppppw
-    withPhase() {
-        printf '%s %s> ' "$_pname_and_dir" "$_ph_seg"
+    __ps1_withPhase() {
+        printf '%s %s> ' "$__ps1_pname_and_dir" "$__ps1_ph_seg"
     }
 
-    # PS1="$(short)"
-    PS1="$(withPhase)"
-
-    unset -f short
-    unset -f withPhase
+    PROMPT_COMMAND="__nix_debug_ps1"
+    __nix_debug_ps1() {
+        if [[ $? == 0 ]]; then
+            PS1="$(__ps1_withPhase)"
+        else
+            PS1="$(__ps1_withPhase)"
+            # replace the green from the prompt with red
+            PS1="${PS1/32/31}"
+            export PS1
+        fi
+    }
 
     __relative_pwd() {
         # if the working directory is a subfolder of the original pwd,
