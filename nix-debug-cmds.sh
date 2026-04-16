@@ -227,13 +227,90 @@ __setup_prompt() {
     }
 }
 
+__oldRunPhaseCode="$(type runPhase | tail +2)"
+__oldRunPhaseCodeExpectedSum="20ae69edc23229e393b27da5bc2294773bbd4f294df6899836ff42fe1820c713"
+__oldRunPhase() { (eval "$__oldRunPhaseCode"; runPhase "$@"); }
+# only replace `runPhase` if the code hasn't changed since this was written
+if [[ "$(echo "$__oldRunPhaseCode" | sha256sum --tag)" = "SHA256 (-) = $__oldRunPhaseCodeExpectedSum" ]]; then
+    runPhase() {
+        local curPhase="$*";
+
+        if [[ -z "$curPhase" ]] || [[ "$curPhase" = "-h" ]] || [[ "$curPhase" = "--help" ]]; then
+            echo "Usage: runPhase <full-phase-name>"
+            echo "  Run a specified phase, as long as its not disabled."
+            echo "  Note: The name has to be in full form, like 'buildPhase', not 'build' or 'b'"
+            return 1;
+        fi
+
+        local cur="${curPhase/Phase/}";
+        # check if the requested phase is disabled
+        # (tip: ${foo^} capitalizes a variable, ${foo,} un-capitalizes it)
+        dontVarname="dont${cur^}";
+        if [[ -n ${!dontVarname} ]]; then
+            echo -e "\e[2mNot running \e[22m$cur\e[2m phase because $\e[22mdont${cur^} is true";
+            return 0;
+        fi
+
+        echo -e "Running phase: \e[1m$cur\e[22m";
+        # don't show the builtin "running phase: fooPhase", since we do it ourselves
+        showPhaseHeader "$curPhase" | tail +2;
+
+        dumpVars;
+
+        # it's possible that the phase tries to *exit* when an error occurs,
+        # which would obviously be bad for us because we're trying to catch errors.
+        #
+        # therefore, we do a very dirty trick and temporarily replace the exit builtin
+        # with a custom command to wrap/detect the phase's exit.
+        #
+        # (and no, we can't "just" open a separate subshell or bash instance, because some
+        # phases (e.g. unpack) modify the environment and we need to have those changes)
+
+        # 1. setup a function to catch and save the exit code
+        __caught_phase_exit_code=0
+        # shellcheck disable=SC2329
+        alias exit='echo exiting...; return'
+        # exit() { __caught_phase_exit_code="${*:-0}";  }
+        # fixme: this doesn't fully work, because processes expect `exit` to stop the control flow
+        # maybe we could abuse traps and signals to go back up the call stack? e.g. send INT in exit(), and catch it here
+        #       (need to check that it *would* stop the control flow correctly, not sure)
+        # export -f exit
+
+        # 2. actually run the phase
+        local startTime endTime;
+        startTime=$(date +"%s");
+        set -x
+        eval "${!curPhase:-$curPhase}" || __caught_phase_exit_code=$?;
+        set +x
+        endTime=$(date +"%s");
+
+        # 3. remove the exit() command, restoring old exit builtin functionality
+        # unset -f exit
+        unalias exit
+
+        # 4. check the exit code, and return immediately if it was non-zero
+        if [[ "$__caught_phase_exit_code" -ne 0 ]]; then
+            return "$__caught_phase_exit_code"
+        fi
+
+        showPhaseFooter "$curPhase" "$startTime" "$endTime";
+
+        if [ "$curPhase" = unpackPhase ]; then
+            [ -n "${sourceRoot:-}" ] && chmod +x -- "${sourceRoot}";
+            cd -- "${sourceRoot:-.}" || (echo -e "\e[31mFailed to cd to unpacked directory\e[0m"; return 1);
+        fi
+    }
+    export -f runPhase
+else
+    echo -e "\e[1;33mThe 'runPhase' function does not have the expected body. \e[22mNot overriding function for safety, but UX will be slightly degraded\e[0m"
+    echo -e "\e[2m(Note: this was most likely caused by a change in nixpkgs; please open an issue in nix-debug for this!)\e[0m"
+fi
+
 run-next-phase() {
     if [[ "$nextPhase" = "" ]]; then
         echo -e "\e[2;33mNo more phases to run\e[0m"
         return 1
     fi
-
-    echo -e "Running phase: \e[1m${nextPhase/Phase/}\e[22m"
 
     # only advance if the phase completed successfully
     if runPhase "$nextPhase"; then
