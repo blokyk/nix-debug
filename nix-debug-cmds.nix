@@ -7,6 +7,6 @@
 
 writeShellApplication {
   name = "__nix-debug-cmds";
-  runtimeInputs = [ coreutils ]; # realpath + grep
+  runtimeInputs = [ coreutils ]; # realpath + grep + sha256sum
   text = builtins.readFile ./nix-debug-cmds.sh;
 }
