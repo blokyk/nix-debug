@@ -168,7 +168,7 @@ __delete_src_on_exit() {
             # try to delete directory normally, and if it doesn't work, make it writable and try again (cf #6)
 
             # shellcheck disable=SC2115 # __original_pwd is never empty, so the expr will never be '/'
-            rm -rf -- "$to_rm" ||
+            rm -rf -- "$to_rm" 2>/dev/null ||
                 (chmod u+w -R -- "$to_rm" && rm -rf -- "$to_rm")
         else
             # todo: when we don't delete the source folder, add a little file that tracks the curr phase
