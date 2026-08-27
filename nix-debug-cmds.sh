@@ -1,28 +1,18 @@
 # shellcheck shell=bash
 
-# if this isn't a bash/stdenv-based derivation, we're useless
-# (we do this outside of main because we might not be able to parse the rest of this file otherwise)
-if [[ "$(basename "${SHELL:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux ]]; then
-    __drv_env="$(basename "${SHELL:-$0}")+$(basename "${stdenv:-unknown}")"
-    echo -e "\e[1;33mWARN: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
-    echo -e   "\e[33m      nix-debug will not be able to detect build phases.\e[0m"
-    unset __drv_env
-    return
+# we do this outside of main because we might not be able
+# to parse the rest of this file otherwise
+if [ "$(echo "${SHELL:-$0}" | tail -c 4)" != bash ]; then
+    printf "\e[1;31mERR: nix-debug doesn't support any other shell than bash"
+    printf "\e[1;31m     but \$SHELL is '%s'" "${SHELL:-$0}"
+    return 0
 fi
 
 __main() {
     __setup_utils
     __setup_prompt
 
-    if [[ "${buildCommand:-}${buildCommandPath:-}" != "" ]]; then
-        echo -e "\e[1;33mWARN: derivation doesn't use phases but instead use buildCommand (this is the case for runCommand, writeText, and other similar builders.)\e[0m"
-        echo -e "\e[1;33m      nix-debug will not be of much help here, good luck.\e[0m"
-        # remove phases from the prompt
-        # todo: this is hacky, we can probably rewrite __setup_prompt to better support this
-        #        (especially cause we already have `__ps1_short`, which doesn't include phases)
-        phases_arr=()
-        return 0
-    fi
+    __check_env || return 0
 
     __setup_phases
 
@@ -39,6 +29,27 @@ __main() {
     alias r='run'
     alias u='run-until'
     alias n='run-next-phase'
+}
+
+__check_env() {
+    # if this isn't a bash/stdenv-based derivation, we're useless
+    if [[ "$(basename "${builder:-$0}")" != *bash ]] || [[ "${stdenv:-}" != *stdenv-linux?(-no-cc) ]]; then
+        __drv_env="$(stripHash "${builder:-$0}")+$(stripHash "${stdenv:-unknown}")"
+        echo -e "\e[1;31mERR: derivation builder '$__drv_env' is not a supported stdenv,\e[0m"
+        echo -e   "\e[31m     nix-debug will not be able to detect build phases.\e[0m"
+        unset __drv_env
+        return 1
+    fi
+
+    if [[ "${buildCommand:-}" != "" ]] || [[ -f "${buildCommandPath:-}" ]]; then
+        echo -e "\e[1;31mERR: derivation doesn't use phases but instead uses buildCommand (this is the case for runCommand, writeText, and other similar builders.)\e[0m"
+        echo -e "\e[1;31m     nix-debug will not be of much help here, good luck.\e[0m"
+        # remove phases from the prompt
+        # todo: this is hacky, we can probably rewrite __setup_prompt to better support this
+        #        (especially cause we already have `__ps1_short`, which doesn't include phases)
+        phases_arr=()
+        return 1
+    fi
 }
 
 __cleanup_start() {
