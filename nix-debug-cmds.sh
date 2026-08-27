@@ -41,7 +41,12 @@ __check_env() {
         return 1
     fi
 
-    if [[ "${buildCommand:-}" != "" ]] || [[ -f "${buildCommandPath:-}" ]]; then
+    # note: we deviate from stdenv's genericBuild by checking the buildCommandPath
+    #       points to a *non-empty* file, instead of just a file. this is because,
+    #       if you launch nix-debug from inside a mkShell-based nix-shell, the
+    #       buildCommandPath var will be set, but it will point to an empty file.
+    #       thus, we use -s instead of -f to detect that scenario and ignore it
+    if [[ "${buildCommand:-}" != "" ]] || [[ -s "${buildCommandPath:-}" ]]; then
         echo -e "\e[1;31mERR: derivation doesn't use phases but instead uses buildCommand (this is the case for runCommand, writeText, and other similar builders.)\e[0m"
         echo -e "\e[1;31m     nix-debug will not be of much help here, good luck.\e[0m"
         # remove phases from the prompt
@@ -49,6 +54,15 @@ __check_env() {
         #        (especially cause we already have `__ps1_short`, which doesn't include phases)
         phases_arr=()
         return 1
+    fi
+
+    # if we're inside an impure nix shell, then warn about it, since it'll fuck with the build in general
+    # fixme: this detects `nix develop` as impure no matter what, because for some reason it always sets `IN_NIX_SHELL=impure` even with --ignore-environment
+    if (( "${NIX_SHELL_LEVEL:-0}" > 1 )) && [[ "${IN_NIX_SHELL:-pure}" != "pure" ]]; then
+      # shellcheck disable=SC2016
+      echo -e '\e[1;33mWARN: it seems you'\''re running nix-debug *inside* a nix-shell.e[0m'
+      echo -e '\e[1;33m      this can lead to surprising build behavior, so if you'\''re not planning on\e[0m'
+      echo -e '\e[1;33m      using things from that nix-shell, you should run nix-debug outside of it.\e[0m'
     fi
 }
 
