@@ -2,9 +2,10 @@
 
 # we do this outside of main because we might not be able
 # to parse the rest of this file otherwise
-if [ "$(echo "${SHELL:-$0}" | tail -c 4)" != bash ]; then
-    printf "\e[1;31mERR: nix-debug doesn't support any other shell than bash"
-    printf "\e[1;31m     but \$SHELL is '%s'" "${SHELL:-$0}"
+__builder_shell="$(basename "${SHELL:-$0}" | tr -d '\n')"
+if [ "$__builder_shell" != bash ]; then
+    printf "\e[1;31mERR: nix-debug doesn't support any other shell than bash\n"
+    printf "\e[1;31m     but \$SHELL is '%s'" "${SHELL:-$0} ($__builder_shell)"
     return 0
 fi
 
