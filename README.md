@@ -13,12 +13,44 @@ derivation debugging experience ever so slightly nicer, by:
 - avoiding the [unending cycle](#automatically-deleting-the-unpacked-source) of `rm -rf source/ && nix-shell ...`
 - having a shorter, [informative prompt](#an-informative-prompt)
 
-You should be able to use this exactly like `nix-shell` ([except for the fact
-that it'll be misleading for `-p`](https://github.com/blokyk/nix-debug/issues/2));
-if not please open an issue!
+You should be able to use this exactly like `nix-shell`; if not, please
+[open an issue](https://github.com/blokyk/nix-debug/issues/new)!
 
-For known issues, see issue tracker, particularly the
-[known issues list](https://github.com/blokyk/nix-debug/issues/1).
+For known issues, [see the issue tracker](https://github.com/blokyk/nix-debug/issues).
+
+## Try it out
+
+If you wish to simply try it out quickly to see if it'd be useful for you, you
+can use the following two-liner to build it and alias it in the current shell:
+
+```sh
+$ alias nix-debug="$(nix-build -E 'import (fetchTarball "https://github.com/blokyk/nix-debug/tarball/main") {}' --no-out-link)/bin/nix-debug"
+$ nix-debug '<nixpkgs>' -A hello
+```
+
+## Installation
+
+If you want to use this package globally, you can use any pinning tool of your
+choice to fetch this repository, and then `import` it directly. Here is an
+example with [npins](https://github.com/andir/npins):
+
+```sh
+$ npins add github blokyk nix-debug --branch main
+```
+```nix
+# in configuration.nix / home.nix
+{ pkgs, ... }:
+let
+  pins = import ./npins {};
+  nix-debug = import pins.nix-debug { /* optional: */ inherit pkgs; };
+in {
+  # for NixOS
+  environment.systemPackages = [ nix-debug ];
+
+  # for Home Manager
+  home.packages = [ nix-debug ];
+}
+```
 
 ## Usage & niceties
 
